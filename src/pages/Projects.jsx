@@ -5,105 +5,148 @@ const columns = ["lead", "proposal", "active", "completed"];
 
 function Projects() {
   const [projects, setProjects] = useState([]);
+  const [clients, setClients] = useState([]);
   const [form, setForm] = useState({
     title: "",
     description: "",
-    client: ""
+    client: "",
   });
-
-  const [clients, setClients] = useState([]);
-
-  // LOAD DATA
-  const loadData = async () => {
-    const proj = await fetchWithAuth("/projects");
-    const cli = await fetchWithAuth("/clients");
-
-    setProjects(proj);
-    setClients(cli);
-  };
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      try {
+        const [projectData, clientData] = await Promise.all([
+          fetchWithAuth("/projects"),
+          fetchWithAuth("/clients"),
+        ]);
+
+        if (isMounted) {
+          setProjects(projectData);
+          setClients(clientData);
+          setError("");
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError(loadError.message);
+        }
+      }
+    };
+
     loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // CREATE
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const reloadProjects = async () => {
+    const data = await fetchWithAuth("/projects");
+    setProjects(data);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     await fetchWithAuth("/projects", {
       method: "POST",
-      body: JSON.stringify(form)
+      body: JSON.stringify(form),
     });
 
     setForm({ title: "", description: "", client: "" });
-    loadData();
+    await reloadProjects();
   };
 
-  // MOVE STATUS
   const moveProject = async (id, status) => {
     await fetchWithAuth(`/projects/${id}`, {
       method: "PUT",
-      body: JSON.stringify({ status })
+      body: JSON.stringify({ status }),
     });
 
-    loadData();
+    await reloadProjects();
   };
 
   return (
-    <div>
-      <h1 className="text-2xl mb-4">Projects</h1>
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs uppercase tracking-[0.3em] text-cyan-400">Projects</p>
+        <h1 className="mt-2 text-2xl font-semibold text-white">Pipeline board</h1>
+      </div>
 
-      {/* CREATE FORM */}
-      <form onSubmit={handleSubmit} className="mb-6 space-x-2">
-        <input placeholder="Title"
+      {error ? (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+          {error}
+        </div>
+      ) : null}
+
+      <form
+        onSubmit={handleSubmit}
+        className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 md:grid-cols-[1.4fr_1fr_auto]"
+      >
+        <input
+          placeholder="Title"
           value={form.title}
-          onChange={e => setForm({...form, title: e.target.value})}
-          className="p-2 text-black"
+          onChange={(event) =>
+            setForm((current) => ({ ...current, title: event.target.value }))
+          }
+          className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyan-400"
         />
-
         <select
           value={form.client}
-          onChange={e => setForm({...form, client: e.target.value})}
-          className="p-2 text-black"
+          onChange={(event) =>
+            setForm((current) => ({ ...current, client: event.target.value }))
+          }
+          className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyan-400"
         >
           <option value="">Select Client</option>
-          {clients.map(c => (
-            <option key={c._id} value={c._id}>{c.name}</option>
+          {clients.map((client) => (
+            <option key={client._id} value={client._id}>
+              {client.name}
+            </option>
           ))}
         </select>
-
-        <button className="bg-blue-500 px-4 py-2">Add</button>
+        <button className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950">
+          Add
+        </button>
       </form>
 
-      {/* KANBAN */}
-      <div className="grid grid-cols-4 gap-4">
-        {columns.map(col => (
-          <div key={col} className="bg-gray-800 p-3 rounded">
-            <h2 className="mb-2 capitalize">{col}</h2>
+      <div className="grid gap-4 xl:grid-cols-4">
+        {columns.map((column) => (
+          <div key={column} className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-300">
+              {column}
+            </h2>
 
-            {projects
-              .filter(p => p.status === col)
-              .map(p => (
-                <div key={p._id} className="bg-gray-700 p-2 mb-2 rounded">
-                  <p>{p.title}</p>
-                  <p className="text-sm text-gray-400">
-                    {p.client?.name}
-                  </p>
+            <div className="space-y-3">
+              {projects
+                .filter((project) => project.status === column)
+                .map((project) => (
+                  <div
+                    key={project._id}
+                    className="rounded-xl border border-slate-800 bg-slate-950 p-3"
+                  >
+                    <p className="font-medium text-white">{project.title}</p>
+                    <p className="text-sm text-slate-400">
+                      {project.client?.name || "No client"}
+                    </p>
 
-                  {/* MOVE BUTTONS */}
-                  <div className="flex gap-1 mt-2">
-                    {columns.map(s => (
-                      <button
-                        key={s}
-                        onClick={() => moveProject(p._id, s)}
-                        className="text-xs bg-blue-500 px-1"
-                      >
-                        {s}
-                      </button>
-                    ))}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {columns.map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => moveProject(project._id, status)}
+                          className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300"
+                        >
+                          {status}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+            </div>
           </div>
         ))}
       </div>

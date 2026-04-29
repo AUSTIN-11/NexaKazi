@@ -1,39 +1,39 @@
-import { Routes, Route } from "react-router-dom";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import ProtectedRoute from "./components/ProtectedRoute";
+import { Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
-
-
-function Dashboard() {
-  return <h1>Dashboard</h1>;
-}
-
-function Clients() {
-  return <h1>Clients</h1>;
-}
+import ProtectedRoute from "./components/ProtectedRoute";
+import CrmDashboardPage from "./features/crm/pages/CrmDashboardPage";
+import CustomerDetailPage from "./features/crm/pages/CustomerDetailPage";
+import CustomersPage from "./features/crm/pages/CustomersPage";
+import ProductsPage from "./features/crm/pages/ProductsPage";
+import Login from "./pages/Login";
+import Projects from "./pages/Projects";
+import Register from "./pages/Register";
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/clients" element={<Clients />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-      <Route path="/" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
-      <Route path="/clients" element={<ProtectedRoute><Layout><Clients /></Layout></ProtectedRoute>} />
-      <Route path="/projects" element={<ProtectedRoute><Layout><Projects /></Layout></ProtectedRoute>} />
+
+      <Route
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<CrmDashboardPage />} />
+        <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/customers/:customerId" element={<CustomerDetailPage />} />
+        <Route path="/products" element={<ProductsPage />} />
+        <Route path="/clients" element={<Navigate to="/customers" replace />} />
+        <Route path="/projects" element={<Projects />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
-    
   );
 }
 
 export default App;
-
-
-
-
-
-
